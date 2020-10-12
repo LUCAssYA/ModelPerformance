@@ -34,7 +34,6 @@ models.append(["SVM", SVC()])
 models.append(['XB', XGBClassifier()])
 models.append(["RFC", RandomForestClassifier()])
 models.append(["NN", NN(shape = (4), n_classes=3)])
-#{"C":[0.001, 0.05, 0.01, 0.5, 0.1, 1, 5, 10, 50, 100], "kernel": ['linear', 'poly', 'rbf', 'sigmoid', 'precomputed'],"gamma": [0.001, 0.05, 0.01, 0.5, 0.1, 1, 5, 10, 50, 100]
 params = [{"C": [0.001, 0.05, 0.01, 0.5, 0.1, 1, 5, 10, 50, 100], 'penalty':['l1', 'l2', 'elasticnet', 'none'],
            "solver": ['newton-cg', 'lbfgs', 'liblinear', 'sag', 'saga']},
           {"solver": ["svd", "lsqr", "eigen"]},
@@ -50,14 +49,7 @@ params = [{"C": [0.001, 0.05, 0.01, 0.5, 0.1, 1, 5, 10, 50, 100], 'penalty':['l1
            'min_samples_leaf': list(range(1, 6)), 'n_jobs': [-1]},
           {}]
 
-best_param = [{'C': 0.001, 'penalty': 'none', 'solver': 'newton-cg'}, {'solver': 'svd'},
-              {'algorithm': 'brute', 'leaf_size': 1, 'n_neighbors': 8, 'weights': 'uniform'},
-              {'criterion': 'gini', 'max_depth': 10, 'min_samples_leaf': 2, 'min_samples_split': 3},
-              {},
-              {'C': 0.05, 'gamma': 0.5, 'kernel': 'poly'},
-              {'booster': 'gbtree', 'colsample_bytree': 0.5, 'gamma': 2, 'learning_rate': 0.2, 'min_child_weight': 5, 'subsample': 0.5},
-              {'criterion': 'entropy', 'min_samples_leaf': 5, 'min_samples_split': 9, 'n_estimators': 30, 'n_jobs': -1},
-              {}]
+best_param = []
 
 def cross_val_boxplot(x, y, num_folds):
     results = []
@@ -199,7 +191,7 @@ if __name__ == "__main__":
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
 
 
-    #grid_search(X_train, y_train, 10)
+    grid_search(X_train, y_train, 10)
     cross_val_boxplot(X_train, y_train, 10)
     fitting(X_train, y_train)
     featrue_importance(iris.feature_names)
