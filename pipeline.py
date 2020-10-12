@@ -185,11 +185,12 @@ def featrue_importance(feature_name):
 
 
 if __name__ == "__main__":
+    ############################################### 데이터 전처리
     iris = load_iris()
     X = iris.data
     y = iris.target
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=0)
-
+############################################################
 
     grid_search(X_train, y_train, 10)
     cross_val_boxplot(X_train, y_train, 10)
