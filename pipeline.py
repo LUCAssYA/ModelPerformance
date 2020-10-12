@@ -5,7 +5,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.discriminant_analysis import  LinearDiscriminantAnalysis
 from sklearn.naive_bayes import  GaussianNB
 from sklearn.svm import SVC
-from sklearn.model_selection import cross_val_score, KFold, train_test_split
+from sklearn.model_selection import cross_val_score, train_test_split, StratifiedKFold
 from deep import NN
 from xgboost import XGBClassifier
 from sklearn.model_selection import GridSearchCV
@@ -14,12 +14,15 @@ from sklearn.metrics import accuracy_score, auc, roc_curve, confusion_matrix
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.datasets import load_iris
+from tensorflow.keras.utils import to_categorical
+
 
 from tensorflow.keras.layers import Dense, Input
 from tensorflow.keras.models import Model
 from tensorflow.keras.wrappers.scikit_learn import KerasClassifier
 
-seed = 100
+shape = (4)
+n_classes = 3
 predict = []
 models = []
 models.append(['LR', LogisticRegression()])
@@ -60,7 +63,7 @@ def cross_val_boxplot(x, y, num_folds):
     results = []
     names = []
     for (name, model), p in zip(models, best_param):
-        kfold = KFold(n_splits=num_folds)
+        kfold = StratifiedKFold(n_splits=num_folds)
         if name == 'LR':
             model = model.set_params(C=p['C'], penalty=p['penalty'], solver = p['solver'])
         elif name == 'LDA':
@@ -71,7 +74,7 @@ def cross_val_boxplot(x, y, num_folds):
             model = model.set_params(criterion = p['criterion'], max_depth = p['max_depth'], min_samples_split = p['min_samples_split'],
                                      min_samples_leaf = p['min_samples_leaf'])
         elif name == "SVM":
-            model = model.set_params(C = p['C'], kernel = p['kernel'], gamma = p['gamma'])
+            model = model.set_params(C = p['C'], kernel = p['kernel'], gamma = p['gamma'], probability = True)
         elif name == "XB":
             model = model.set_params(booster = p['booster'], learning_rate = p['learning_rate'], min_child_weight = p['min_child_weight'],
                                      gamma = p['gamma'], colsample_bytree = p['colsample_bytree'], subsample = p['subsample'])
@@ -79,7 +82,7 @@ def cross_val_boxplot(x, y, num_folds):
             model = model.set_params(n_estimators = p['n_estimators'], criterion = p['criterion'], min_samples_split = p['min_samples_split'],
                                      min_samples_leaf = p['min_samples_leaf'], n_jobs = p['n_jobs'])
         if name == "NN":
-            cv_result = deep_crossval(x, y, kfold, model.copy)
+            cv_result = deep_crossval(x, y, kfold)
         else:
             cv_result = cross_val_score(model, x, y, cv = kfold, scoring="accuracy")
         results.append(cv_result)
@@ -88,18 +91,27 @@ def cross_val_boxplot(x, y, num_folds):
         print(message)
 
     fig = plt.figure()
-    fig.subtitle("cross validation score boxplot")
     ax = fig.add_subplot(111)
+    plt.title("cross validation score boxplot")
     plt.boxplot(results)
     ax.set_xticklabels(names)
     plt.show()
 
-def deep_crossval(x, y, kfold, model):
-    for train, test in kfold(x):
+def deep_crossval(x, y, kfold):
+    cv_result = np.array([])
+    for train, test in kfold.split(x, y):
+        m = NN(shape = shape, n_classes=n_classes)
         train_x, train_y = x[train], y[train]
         test_x, test_y = x[test], y[test]
 
-        model.fit(x, y)
+        m.fit(train_x, train_y, epochs = 15, verbose = 0)
+        result = np.argmax(m.predict(test_x), axis =1)
+
+
+        cv_result = np.append(cv_result, accuracy_score(test_y, result))
+
+    return cv_result
+
 
 
 def grid_search(x, y, num_folds):
@@ -115,12 +127,17 @@ def grid_search(x, y, num_folds):
 
 def fitting(x, y):
     for name, model in models:
-        model = model.fit(x, y)
+        if name == "NN":
+            model = model.fit(x, y, epochs = 15, verbose = 0)
+        else:
+            model = model.fit(x, y)
 
 def testing(x_test, y_test):
     plt.figure()
     for i, (name, model) in enumerate(models):
         local_predict = model.predict(x_test)
+        if name == "NN":
+            local_predict = np.argmax(local_predict, axis = 1)
         acc = accuracy_score(y_test, local_predict)
         print(name+": "+ str(acc))
         predict.append(local_predict)
@@ -133,8 +150,12 @@ def testing(x_test, y_test):
 
 def roc(x_test, y_test):
     for name, model in models:
-        prob = model.predict_broba(x_test)
-        fpr, tpr, th = roc_curve(y_test, prob[:, 0], pos_label=0)
+        if name == "NN":
+            prob = model.predict(x_test)
+            fpr, tpr, th = roc_curve(y_test, prob, pos_label=0)
+        else:
+            prob = model.decision_function(x_test)
+            fpr, tpr, th = roc_curve(y_test, prob[:, 0], pos_label=0)
         auc_score = auc(fpr, tpr)
         plt.plot(fpr, tpr, lw = 2, label = name+"(area = %0.4f)"%auc_score)
     plt.plot([0, 1], [0, 1], lw = 2, linestyle = '--')
@@ -164,7 +185,7 @@ def confusionmatrix(y_test):
 
 def featrue_importance(feature_name):
     plt.figure()
-    plt.bar(feature_name, models[7][1].featrue_importances_)
+    plt.bar(feature_name, models[7][1].feature_importances_)
     plt.xlabel("Label")
     plt.ylabel("Importance score")
     plt.title("Feature importances")
